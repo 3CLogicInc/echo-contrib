@@ -45,11 +45,26 @@ Advanced example:
 package casbin
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+)
+
+//AuthenticationType ...
+type AuthenticationType int
+
+const (
+	//BasicAuth refers to basic authentication
+	//default option
+	BasicAuth AuthenticationType = iota
+	//JwtAuth refers to JWT token auth in 'Authorization` header
+	JwtAuth
 )
 
 type (
@@ -61,6 +76,9 @@ type (
 		// Enforcer CasbinAuth main rule.
 		// Required.
 		Enforcer *casbin.Enforcer
+
+		//AuthType ...
+		AuthType AuthenticationType
 	}
 )
 
@@ -70,6 +88,18 @@ var (
 		Skipper: middleware.DefaultSkipper,
 	}
 )
+
+//JWT registered claims as per
+//https://tools.ietf.org/html/rfc7519#page-8
+type jwtClaims struct {
+	Iss string `json:"iss"`
+	Sub string `json:"sub"`
+	Aud string `json:"aud"`
+	Exp string `json:"exp"`
+	Nbf string `json:"nbf"`
+	Iat string `json:"iat"`
+	Jti string `json:"jti"`
+}
 
 // Middleware returns a CasbinAuth middleware.
 //
@@ -109,8 +139,37 @@ func MiddlewareWithConfig(config Config) echo.MiddlewareFunc {
 // GetUserName gets the user name from the request.
 // Currently, only HTTP basic authentication is supported
 func (a *Config) GetUserName(c echo.Context) string {
+	switch a.AuthType {
+	case BasicAuth:
+		return a.getUserNameBasicAuth(c)
+	case JwtAuth:
+		return a.getUserNameJwtAuth(c)
+	}
+
+	return ""
+}
+
+func (a *Config) getUserNameBasicAuth(c echo.Context) string {
 	username, _, _ := c.Request().BasicAuth()
 	return username
+}
+
+func (a *Config) getUserNameJwtAuth(c echo.Context) string {
+	//parse 'sub' from the jwt token
+	token := c.Request().Header.Get("Authorization")
+	splitToken := strings.Split(token, ".")
+
+	tokenBody := splitToken[1]
+	body, err := base64.RawStdEncoding.DecodeString(tokenBody)
+	if err != nil {
+		log.Printf("token decode failed: %s", err)
+		return ""
+	}
+
+	jsonBody := &jwtClaims{}
+	json.Unmarshal(body, jsonBody)
+
+	return jsonBody.Sub
 }
 
 // CheckPermission checks the user/method/path combination from the request.
