@@ -1,4 +1,4 @@
-module github.com/labstack/echo-contrib
+module github.com/3CLogicInc/echo-contrib
 
 require (
 	github.com/casbin/casbin/v2 v2.0.0
