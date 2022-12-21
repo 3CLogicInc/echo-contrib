@@ -1,3 +1,6 @@
+# Archived
+Do not use. Use from labstack/echo-contrib instead.
+
 # Echo Community Contribution
 
  [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](http://godoc.org/github.com/labstack/echo-contrib)
